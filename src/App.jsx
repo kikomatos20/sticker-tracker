@@ -173,8 +173,6 @@ function Section({ team, album, dupes, variants, onCellTap, onCellLongPress, fil
     } catch { return stickers; }
   }, [stickers, album, dupes, team.id, filter]);
 
-  if (filter !== 'all' && visible.length === 0) return null;
-
   const teamDupesList = useMemo(() => {
     try {
       return stickers
@@ -188,8 +186,10 @@ function Section({ team, album, dupes, variants, onCellTap, onCellLongPress, fil
     [teamDupesList]
   );
 
+  const isHidden = filter !== 'all' && visible.length === 0;
+
   return (
-    <div className={`section ${isComplete ? 'section-complete' : ''}`}>
+    <div className={`section ${isComplete ? 'section-complete' : ''} ${isHidden ? 'section-hidden' : ''}`}>
       <div className="sec-hdr" onClick={() => setOpen(o => !o)}>
         <span className="sec-flag">{team.flag}</span>
         <span className="sec-name">{team.name}</span>
