@@ -180,3 +180,34 @@ html, body { min-height: 100vh; background: var(--bg); color: var(--text); font-
   .progress-card { flex-direction: column; align-items: flex-start; }
   .tab { padding: 10px 10px; font-size: 0.78rem; }
 }
+
+/* ── VARIANT SYSTEM ── */
+.variant-legend { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:12px; font-size:11px; }
+.legend-label { color:var(--dim); text-transform:uppercase; letter-spacing:1px; }
+.legend-chip { border-radius:4px; border:1px solid; padding:2px 8px; font-size:11px; font-weight:600; }
+.legend-hint { color:var(--dim); font-size:10px; margin-left:4px; }
+.cell-variant { font-size:8px; font-weight:700; line-height:1; }
+.variant-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:12px 0; }
+.variant-btn {
+  background:var(--vbg); border:1.5px solid var(--vborder); color:var(--vtext);
+  border-radius:var(--r); padding:10px 6px; font-family:'DM Sans',sans-serif;
+  font-size:13px; font-weight:600; cursor:pointer; transition:opacity 0.15s;
+}
+.variant-btn:hover { opacity:0.85; }
+.variant-btn.active { outline:2px solid var(--vtext); outline-offset:2px; }
+.dupe-chip-group { display:inline-flex; flex-direction:column; gap:3px; }
+.dupe-chip {
+  display:inline-flex; align-items:center; gap:4px;
+  background:var(--vbg,rgba(176,125,16,0.12)); border:1px solid var(--vborder,rgba(176,125,16,0.35));
+  border-radius:6px; padding:3px 8px;
+}
+.dupe-chip-id { font-size:11px; font-weight:600; color:var(--vtext,#f5c518); font-family:monospace; }
+.dupe-chip-variant { font-size:9px; color:var(--vtext,#f5c518); opacity:0.8; }
+.dupe-chip-count { font-size:10px; color:var(--vtext,#b07d10); }
+.dupe-chip-minus { background:none; border:none; color:var(--vtext,#f5c518); cursor:pointer; font-size:14px; line-height:1; padding:0 0 0 4px; border-left:1px solid var(--vborder,rgba(176,125,16,0.3)); margin-left:2px; padding-left:5px; transition:color 0.1s; }
+.dupe-chip-minus:hover { color:var(--red); }
+
+/* ── COMPLETE SECTION ── */
+.section-complete { opacity:0.6; }
+.section-complete:hover { opacity:1; }
+.sec-complete-badge { font-size:10px; background:rgba(45,154,92,0.15); border:1px solid rgba(45,154,92,0.4); color:var(--green-hi); border-radius:99px; padding:1px 8px; }
