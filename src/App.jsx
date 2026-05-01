@@ -4,6 +4,17 @@ import { useStore, VARIANTS, VARIANT_COLORS } from './useStore.js';
 import { useRoom } from './useRoom.js';
 import './App.css';
 
+// ── Error Boundary ─────────────────────────────────────────────────────────
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false }; }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(e) { console.error('Section error:', e); }
+  render() {
+    if (this.state.hasError) return null;
+    return this.props.children;
+  }
+}
+
 // ── Toast ──────────────────────────────────────────────────────────────────
 function Toast({ message, type = 'success' }) {
   if (!message) return null;
@@ -82,30 +93,48 @@ function DupeChip({ id, variantCounts, onRemove }) {
 function LongPressCell({ id, inAlbum, variant, vc, onTap, onLongPress, children }) {
   const timerRef = React.useRef(null);
   const didLongPress = React.useRef(false);
+  const startPos = React.useRef({ x: 0, y: 0 });
 
   const start = (e) => {
     didLongPress.current = false;
+    const touch = e.touches?.[0] || e;
+    startPos.current = { x: touch.clientX, y: touch.clientY };
     timerRef.current = setTimeout(() => {
       didLongPress.current = true;
+      // Vibrate on mobile if supported
+      if (navigator.vibrate) navigator.vibrate(40);
       onLongPress();
     }, 500);
   };
 
-  const cancel = () => {
+  const cancel = (e) => {
     if (timerRef.current) clearTimeout(timerRef.current);
+  };
+
+  const handleMove = (e) => {
+    const touch = e.touches?.[0] || e;
+    const dx = Math.abs(touch.clientX - startPos.current.x);
+    const dy = Math.abs(touch.clientY - startPos.current.y);
+    if (dx > 10 || dy > 10) cancel(); // cancel if finger moved
   };
 
   const handleClick = () => {
     if (!didLongPress.current) onTap();
+    didLongPress.current = false;
   };
 
   return (
     <div
       className={`cell ${inAlbum ? 'have' : ''}`}
-      style={inAlbum && variant !== 'base' ? { background: vc.bg, borderColor: vc.border } : {}}
+      style={{
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        WebkitTouchCallout: 'none',
+        ...(inAlbum && variant !== 'base' ? { background: vc.bg, borderColor: vc.border } : {})
+      }}
       onTouchStart={start}
       onTouchEnd={cancel}
-      onTouchMove={cancel}
+      onTouchMove={handleMove}
       onMouseDown={start}
       onMouseUp={cancel}
       onMouseLeave={cancel}
@@ -590,17 +619,18 @@ export default function App() {
             <span className="legend-hint">Hold a sticker to set variant</span>
           </div>
           {sortedTeams.map(team => (
-            <Section
-              key={team.id}
-              team={team}
-              album={album}
-              dupes={dupes}
-              variants={variants}
-              onCellTap={handleCellTap}
-              onCellLongPress={handleCellLongPress}
-              filter={filter}
-              isComplete={completedIds.has(team.id)}
-            />
+            <ErrorBoundary key={team.id}>
+              <Section
+                team={team}
+                album={album}
+                dupes={dupes}
+                variants={variants}
+                onCellTap={handleCellTap}
+                onCellLongPress={handleCellLongPress}
+                filter={filter}
+                isComplete={completedIds.has(team.id)}
+              />
+            </ErrorBoundary>
           ))}
         </>
       )}

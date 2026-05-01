@@ -88,7 +88,7 @@ html, body { min-height: 100vh; background: var(--bg); color: var(--text); font-
 /* ── SEC BODY + GRID ── */
 .sec-body { background: var(--bg); }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); gap: 5px; padding: 12px 14px; }
-.cell { position: relative; aspect-ratio: 1; border-radius: 6px; border: 1.5px solid var(--border); background: var(--surface); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.1s, border-color 0.1s; gap: 1px; }
+.cell { position: relative; aspect-ratio: 1; border-radius: 6px; border: 1.5px solid var(--border); background: var(--surface); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.1s, border-color 0.1s; gap: 1px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .cell:hover { transform: scale(1.08); border-color: var(--green); z-index: 2; }
 .cell.have { background: #1a3a20; border-color: #2a6a40; }
 .cell.have .cell-num { color: var(--green-hi); }
