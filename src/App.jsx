@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { TEAMS, TOTAL_STICKERS } from './data.js';
 import { useStore, VARIANTS, VARIANT_COLORS } from './useStore.js';
 import { useRoom } from './useRoom.js';
@@ -78,6 +78,45 @@ function DupeChip({ id, variantCounts, onRemove }) {
   );
 }
 
+// ── Long Press Cell ────────────────────────────────────────────────────────
+function LongPressCell({ id, inAlbum, variant, vc, onTap, onLongPress, children }) {
+  const timerRef = React.useRef(null);
+  const didLongPress = React.useRef(false);
+
+  const start = (e) => {
+    didLongPress.current = false;
+    timerRef.current = setTimeout(() => {
+      didLongPress.current = true;
+      onLongPress();
+    }, 500);
+  };
+
+  const cancel = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  };
+
+  const handleClick = () => {
+    if (!didLongPress.current) onTap();
+  };
+
+  return (
+    <div
+      className={`cell ${inAlbum ? 'have' : ''}`}
+      style={inAlbum && variant !== 'base' ? { background: vc.bg, borderColor: vc.border } : {}}
+      onTouchStart={start}
+      onTouchEnd={cancel}
+      onTouchMove={cancel}
+      onMouseDown={start}
+      onMouseUp={cancel}
+      onMouseLeave={cancel}
+      onClick={handleClick}
+      onContextMenu={e => e.preventDefault()}
+    >
+      {children}
+    </div>
+  );
+}
+
 // ── Section ────────────────────────────────────────────────────────────────
 function Section({ team, album, dupes, variants, onCellTap, onCellLongPress, filter, isComplete }) {
   const [open, setOpen] = useState(false);
@@ -142,23 +181,21 @@ function Section({ team, album, dupes, variants, onCellTap, onCellLongPress, fil
               const variant = variants.get(id) || 'base';
               const vc = inAlbum ? VARIANT_COLORS[variant] : null;
               return (
-                <div
+                <LongPressCell
                   key={n}
-                  className={`cell ${inAlbum ? 'have' : ''}`}
-                  style={inAlbum && variant !== 'base' ? {
-                    background: vc.bg,
-                    borderColor: vc.border,
-                  } : {}}
-                  onClick={() => { try { onCellTap(id); } catch(e) {} }}
-                  onContextMenu={e => { e.preventDefault(); if (inAlbum) onCellLongPress(id); }}
-                  title={`${id}${inAlbum ? ' — long press to change variant' : ''}`}
+                  id={id}
+                  inAlbum={inAlbum}
+                  variant={variant}
+                  vc={vc}
+                  onTap={() => { try { onCellTap(id); } catch(e) {} }}
+                  onLongPress={() => { if (inAlbum) onCellLongPress(id); }}
                 >
                   <span className="cell-num" style={inAlbum && variant !== 'base' ? {color: vc.text} : {}}>{n}</span>
                   <span className="cell-label">{team.id}</span>
                   {inAlbum && variant !== 'base' && (
                     <span className="cell-variant" style={{color: vc.text}}>{VARIANT_COLORS[variant].label}</span>
                   )}
-                </div>
+                </LongPressCell>
               );
             })}
           </div>
@@ -550,7 +587,7 @@ export default function App() {
               const vc = VARIANT_COLORS[v];
               return <span key={v} className="legend-chip" style={{background:vc.bg,borderColor:vc.border,color:vc.text}}>{vc.label}</span>;
             })}
-            <span className="legend-hint">Right-click a sticker to set variant</span>
+            <span className="legend-hint">Hold a sticker to set variant</span>
           </div>
           {sortedTeams.map(team => (
             <Section
