@@ -39,61 +39,82 @@ function PromoteModal({ stickerId, onPromote, onDismiss }) {
   );
 }
 
-// ── Variant Picker Modal ───────────────────────────────────────────────────
-function VariantModal({ stickerId, currentVariant, onSelect, onDismiss }) {
+// ── Long Press Menu ────────────────────────────────────────────────────────
+// Shown when long pressing a sticker that's in the album
+function LongPressMenu({ stickerId, albumVariant, dupeVariantCounts, onClose, onSetAlbumVariant, onAddDupe, onRemoveDupe, onRemoveFromAlbum }) {
   if (!stickerId) return null;
+  const totalDupes = Object.values(dupeVariantCounts || {}).reduce((s,c)=>s+c,0);
+
   return (
-    <div className="modal-overlay" onClick={onDismiss}>
+    <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-title" style={{marginBottom:4}}>Which variant is <span className="modal-id">{stickerId}</span>?</div>
-        <div className="modal-sub">Select the border color of your sticker</div>
-        <div className="variant-grid">
+        <div className="modal-title" style={{marginBottom:4}}>{stickerId}</div>
+        <div className="modal-sub" style={{marginBottom:16}}>What would you like to do?</div>
+
+        {/* Album copy variant */}
+        <div className="lpm-section-label">My album copy is:</div>
+        <div className="variant-grid" style={{marginBottom:16}}>
           {VARIANTS.map(v => {
             const vc = VARIANT_COLORS[v];
             return (
               <button
                 key={v}
-                className={`variant-btn ${currentVariant === v ? 'active' : ''}`}
-                style={{ '--vbg': vc.bg, '--vborder': vc.border, '--vtext': vc.text }}
-                onClick={() => onSelect(v)}
-              >
-                {vc.label}
-              </button>
+                className={`variant-btn ${albumVariant === v ? 'active' : ''}`}
+                style={{'--vbg':vc.bg,'--vborder':vc.border,'--vtext':vc.text}}
+                onClick={() => { onSetAlbumVariant(v); onClose(); }}
+              >{vc.label}</button>
             );
           })}
         </div>
-        <button className="modal-btn modal-btn-secondary" style={{marginTop:12,width:'100%'}} onClick={onDismiss}>Cancel</button>
+
+        {/* Add a dupe */}
+        <div className="lpm-section-label">Add a duplicate:</div>
+        <div className="variant-grid" style={{marginBottom:16}}>
+          {VARIANTS.map(v => {
+            const vc = VARIANT_COLORS[v];
+            return (
+              <button
+                key={v}
+                className="variant-btn"
+                style={{'--vbg':vc.bg,'--vborder':vc.border,'--vtext':vc.text}}
+                onClick={() => { onAddDupe(v); onClose(); }}
+              >+ {vc.label}</button>
+            );
+          })}
+        </div>
+
+        {/* Remove a dupe */}
+        {totalDupes > 0 && (
+          <>
+            <div className="lpm-section-label">Remove a duplicate:</div>
+            <div className="dupe-remove-list">
+              {Object.entries(dupeVariantCounts || {}).map(([v, count]) => {
+                const vc = VARIANT_COLORS[v] || VARIANT_COLORS.base;
+                return (
+                  <div key={v} className="dupe-remove-row" style={{'--vbg':vc.bg,'--vborder':vc.border,'--vtext':vc.text}}>
+                    <span className="dupe-remove-label">{vc.label} ×{count}</span>
+                    <button className="dupe-remove-btn" onClick={() => { onRemoveDupe(v); onClose(); }}>− Remove one</button>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        <button className="modal-btn modal-btn-danger" style={{marginTop:12,width:'100%'}} onClick={() => { onRemoveFromAlbum(); onClose(); }}>
+          Remove from album
+        </button>
+        <button className="modal-btn modal-btn-secondary" style={{marginTop:8,width:'100%'}} onClick={onClose}>Cancel</button>
       </div>
     </div>
   );
 }
 
-// ── Dupe Chip ──────────────────────────────────────────────────────────────
-function DupeChip({ id, variantCounts, onRemove }) {
-  return (
-    <div className="dupe-chip-group">
-      {Object.entries(variantCounts).map(([v, count]) => {
-        const vc = VARIANT_COLORS[v] || VARIANT_COLORS.base;
-        return (
-          <div key={v} className="dupe-chip" style={{'--vbg':vc.bg,'--vborder':vc.border,'--vtext':vc.text}}>
-            <span className="dupe-chip-id">{id}</span>
-            <span className="dupe-chip-variant">{vc.label}</span>
-            <span className="dupe-chip-count">×{count}</span>
-            {onRemove && (
-              <button className="dupe-chip-minus" onClick={() => { try { onRemove(id, v); } catch(e) {} }}>−</button>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 // ── Long Press Cell ────────────────────────────────────────────────────────
-function LongPressCell({ id, inAlbum, variant, vc, onTap, onLongPress, children }) {
+function LongPressCell({ inAlbum, variant, vc, dupeCount, onTap, onLongPress, children }) {
   const timerRef = React.useRef(null);
   const didLongPress = React.useRef(false);
-  const startPos = React.useRef({ x: 0, y: 0 });
+  const startPos = React.useRef({ x:0, y:0 });
 
   const start = (e) => {
     didLongPress.current = false;
@@ -101,47 +122,34 @@ function LongPressCell({ id, inAlbum, variant, vc, onTap, onLongPress, children 
     startPos.current = { x: touch.clientX, y: touch.clientY };
     timerRef.current = setTimeout(() => {
       didLongPress.current = true;
-      // Vibrate on mobile if supported
       if (navigator.vibrate) navigator.vibrate(40);
       onLongPress();
     }, 500);
   };
-
-  const cancel = (e) => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-  };
-
+  const cancel = () => { if (timerRef.current) clearTimeout(timerRef.current); };
   const handleMove = (e) => {
     const touch = e.touches?.[0] || e;
-    const dx = Math.abs(touch.clientX - startPos.current.x);
-    const dy = Math.abs(touch.clientY - startPos.current.y);
-    if (dx > 10 || dy > 10) cancel(); // cancel if finger moved
+    if (Math.abs(touch.clientX - startPos.current.x) > 10 || Math.abs(touch.clientY - startPos.current.y) > 10) cancel();
   };
+  const handleClick = () => { if (!didLongPress.current) onTap(); didLongPress.current = false; };
 
-  const handleClick = () => {
-    if (!didLongPress.current) onTap();
-    didLongPress.current = false;
+  const style = {
+    userSelect:'none', WebkitUserSelect:'none', WebkitTouchCallout:'none',
+    ...(inAlbum && variant !== 'base' && vc ? { background: vc.bg, borderColor: vc.border } : {})
   };
 
   return (
     <div
       className={`cell ${inAlbum ? 'have' : ''}`}
-      style={{
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-        WebkitTouchCallout: 'none',
-        ...(inAlbum && variant !== 'base' ? { background: vc.bg, borderColor: vc.border } : {})
-      }}
-      onTouchStart={start}
-      onTouchEnd={cancel}
-      onTouchMove={handleMove}
-      onMouseDown={start}
-      onMouseUp={cancel}
-      onMouseLeave={cancel}
-      onClick={handleClick}
-      onContextMenu={e => e.preventDefault()}
+      style={style}
+      onTouchStart={start} onTouchEnd={cancel} onTouchMove={handleMove}
+      onMouseDown={start} onMouseUp={cancel} onMouseLeave={cancel}
+      onClick={handleClick} onContextMenu={e => e.preventDefault()}
     >
       {children}
+      {dupeCount > 0 && (
+        <span className="cell-dupe-badge">+{dupeCount}</span>
+      )}
     </div>
   );
 }
@@ -149,20 +157,26 @@ function LongPressCell({ id, inAlbum, variant, vc, onTap, onLongPress, children 
 // ── Section ────────────────────────────────────────────────────────────────
 function Section({ team, album, dupes, variants, onCellTap, onCellLongPress, filter, isComplete }) {
   const [open, setOpen] = useState(false);
-  const stickers = useMemo(() => Array.from({ length: team.count }, (_, i) => i + 1), [team.count]);
 
-  const have = useMemo(() => stickers.filter(n => album.has(`${team.id}-${n}`)).length, [stickers, album, team.id]);
+  // Support startAt (FWC starts at 00)
+  const startAt = team.startAt ?? 1;
+  const stickers = useMemo(() =>
+    Array.from({ length: team.count }, (_, i) => startAt + i),
+    [team.count, startAt]
+  );
+
+  const have = useMemo(() => stickers.filter(n => album.has(`${team.id}-${String(n).padStart(n < 1 ? 2 : 0, '0')}`)).length, [stickers, album, team.id]);
+
+  const stickerKey = (n) => n === 0 || (team.startAt === 0) ? `${team.id}-${String(n).padStart(2,'0')}` : `${team.id}-${n}`;
+
   const pct = Math.round((have / team.count) * 100);
 
-  // Auto-close when complete
-  useEffect(() => {
-    if (have === team.count && open) setOpen(false);
-  }, [have, team.count]);
+  useEffect(() => { if (have === team.count && open) setOpen(false); }, [have, team.count]);
 
   const visible = useMemo(() => {
     try {
       return stickers.filter(n => {
-        const id = `${team.id}-${n}`;
+        const id = stickerKey(n);
         const inAlbum = album.has(id);
         if (filter === 'all') return true;
         if (filter === 'have') return inAlbum;
@@ -176,12 +190,12 @@ function Section({ team, album, dupes, variants, onCellTap, onCellLongPress, fil
   const teamDupesList = useMemo(() => {
     try {
       return stickers
-        .filter(n => dupes.has(`${team.id}-${n}`))
-        .map(n => ({ id: `${team.id}-${n}`, variantCounts: dupes.get(`${team.id}-${n}`) || {} }));
+        .filter(n => dupes.has(stickerKey(n)))
+        .map(n => ({ id: stickerKey(n), variantCounts: dupes.get(stickerKey(n)) || {} }));
     } catch { return []; }
   }, [stickers, dupes, team.id]);
 
-  const teamDupesCount = useMemo(() =>
+  const teamDupesTotal = useMemo(() =>
     teamDupesList.reduce((s, d) => s + Object.values(d.variantCounts).reduce((a,b)=>a+b,0), 0),
     [teamDupesList]
   );
@@ -194,51 +208,43 @@ function Section({ team, album, dupes, variants, onCellTap, onCellLongPress, fil
         <span className="sec-flag">{team.flag}</span>
         <span className="sec-name">{team.name}</span>
         {team.group && <span className="sec-group">Grp {team.group}</span>}
-        {isComplete && <span className="sec-complete-badge">✓ Complete</span>}
-        {teamDupesCount > 0 && <span className="sec-dupes-badge">+{teamDupesCount} dupes</span>}
-        <div className="mini-track"><div className="mini-fill" style={{ width: `${pct}%` }} /></div>
+        {isComplete && <span className="sec-complete-badge">✓</span>}
+        {teamDupesTotal > 0 && <span className="sec-dupes-badge">+{teamDupesTotal} dupes</span>}
+        <div className="mini-track"><div className="mini-fill" style={{width:`${pct}%`}} /></div>
         <span className="sec-stat"><b>{have}</b>/{team.count}</span>
-        <span className={`chev ${open ? 'open' : ''}`}>▼</span>
+        <span className={`chev ${open?'open':''}`}>▼</span>
       </div>
 
       {open && (
         <div className="sec-body">
           <div className="grid">
             {visible.map(n => {
-              const id = `${team.id}-${n}`;
+              const id = stickerKey(n);
               const inAlbum = album.has(id);
               const variant = variants.get(id) || 'base';
               const vc = inAlbum ? VARIANT_COLORS[variant] : null;
+              const dupeEntry = dupes.get(id) || {};
+              const dupeCount = Object.values(dupeEntry).reduce((s,c)=>s+c,0);
+              const label = team.startAt === 0 ? String(n).padStart(2,'0') : n;
               return (
                 <LongPressCell
                   key={n}
-                  id={id}
                   inAlbum={inAlbum}
                   variant={variant}
                   vc={vc}
-                  onTap={() => { try { onCellTap(id); } catch(e) {} }}
+                  dupeCount={dupeCount}
+                  onTap={() => { try { onCellTap(id); } catch(e){} }}
                   onLongPress={() => { if (inAlbum) onCellLongPress(id); }}
                 >
-                  <span className="cell-num" style={inAlbum && variant !== 'base' ? {color: vc.text} : {}}>{n}</span>
+                  <span className="cell-num" style={inAlbum && variant !== 'base' && vc ? {color:vc.text} : {}}>{label}</span>
                   <span className="cell-label">{team.id}</span>
-                  {inAlbum && variant !== 'base' && (
-                    <span className="cell-variant" style={{color: vc.text}}>{VARIANT_COLORS[variant].label}</span>
+                  {inAlbum && variant !== 'base' && vc && (
+                    <span className="cell-variant" style={{color:vc.text}}>{VARIANT_COLORS[variant].label[0]}</span>
                   )}
                 </LongPressCell>
               );
             })}
           </div>
-
-          {teamDupesList.length > 0 && (
-            <div className="team-dupes-row">
-              <span className="team-dupes-label">Dupes:</span>
-              <div className="team-dupes-list">
-                {teamDupesList.map(({ id, variantCounts }) => (
-                  <DupeChip key={id} id={id} variantCounts={variantCounts} />
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -251,34 +257,28 @@ function SwapsTab({ dupes, onRemoveDupe }) {
     try {
       const list = [];
       TEAMS.forEach(team => {
-        Array.from({ length: team.count }, (_, i) => i + 1).forEach(n => {
-          const id = `${team.id}-${n}`;
+        const startAt = team.startAt ?? 1;
+        Array.from({length:team.count},(_,i)=>startAt+i).forEach(n => {
+          const id = team.startAt === 0 ? `${team.id}-${String(n).padStart(2,'0')}` : `${team.id}-${n}`;
           const variantCounts = dupes.get(id);
-          if (variantCounts && Object.keys(variantCounts).length > 0) {
+          if (variantCounts && Object.keys(variantCounts).length > 0)
             list.push({ id, team, variantCounts });
-          }
         });
       });
       return list;
     } catch { return []; }
   }, [dupes]);
 
-  const totalDupes = useMemo(() =>
-    items.reduce((s, i) => s + Object.values(i.variantCounts).reduce((a,b)=>a+b,0), 0),
-    [items]
-  );
+  const totalDupes = items.reduce((s,i)=>s+Object.values(i.variantCounts).reduce((a,b)=>a+b,0),0);
 
   if (!items.length) return (
-    <div className="empty-state">
-      <div className="empty-icon">📦</div>
-      <div>No duplicates yet — keep opening packs!</div>
-    </div>
+    <div className="empty-state"><div className="empty-icon">📦</div><div>No duplicates yet!</div></div>
   );
 
   const byTeam = useMemo(() => {
     const map = new Map();
     items.forEach(item => {
-      if (!map.has(item.team.id)) map.set(item.team.id, { team: item.team, items: [] });
+      if (!map.has(item.team.id)) map.set(item.team.id, {team:item.team,items:[]});
       map.get(item.team.id).items.push(item);
     });
     return [...map.values()];
@@ -286,16 +286,28 @@ function SwapsTab({ dupes, onRemoveDupe }) {
 
   return (
     <div className="list-pane">
-      <div className="list-meta">{items.length} sticker types · {totalDupes} total extras to trade</div>
-      {byTeam.map(({ team, items: teamItems }) => (
+      <div className="list-meta">{items.length} sticker types · {totalDupes} total to trade</div>
+      {byTeam.map(({team,items:ti}) => (
         <div key={team.id} className="swap-team-block">
           <div className="swap-team-header">
             <span>{team.flag}</span>
             <span className="swap-team-name">{team.name}</span>
           </div>
           <div className="swap-chips">
-            {teamItems.map(({ id, variantCounts }) => (
-              <DupeChip key={id} id={id} variantCounts={variantCounts} onRemove={onRemoveDupe} />
+            {ti.map(({id,variantCounts}) => (
+              <div key={id} className="swap-chip-group">
+                {Object.entries(variantCounts).map(([v,count]) => {
+                  const vc = VARIANT_COLORS[v]||VARIANT_COLORS.base;
+                  return (
+                    <div key={v} className="dupe-chip" style={{'--vbg':vc.bg,'--vborder':vc.border,'--vtext':vc.text}}>
+                      <span className="dupe-chip-id">{id}</span>
+                      <span className="dupe-chip-variant">{vc.label}</span>
+                      <span className="dupe-chip-count">×{count}</span>
+                      <button className="dupe-chip-minus" onClick={()=>{try{onRemoveDupe(id,v);}catch(e){}}}>−</button>
+                    </div>
+                  );
+                })}
+              </div>
             ))}
           </div>
         </div>
@@ -308,28 +320,31 @@ function SwapsTab({ dupes, onRemoveDupe }) {
 function MissingTab({ album, missingCount }) {
   const grouped = useMemo(() => {
     try {
-      return TEAMS.map(team => ({
-        ...team,
-        missing: Array.from({ length: team.count }, (_, i) => i + 1)
-          .filter(n => !album.has(`${team.id}-${n}`)),
-      })).filter(t => t.missing.length > 0);
+      return TEAMS.map(team => {
+        const startAt = team.startAt ?? 1;
+        return {
+          ...team,
+          missing: Array.from({length:team.count},(_,i)=>startAt+i).filter(n => {
+            const id = team.startAt === 0 ? `${team.id}-${String(n).padStart(2,'0')}` : `${team.id}-${n}`;
+            return !album.has(id);
+          }).map(n => team.startAt === 0 ? `${team.id}-${String(n).padStart(2,'0')}` : `${team.id}-${n}`)
+        };
+      }).filter(t => t.missing.length > 0);
     } catch { return []; }
   }, [album]);
 
   const exportTxt = () => {
-    const lines = grouped.map(t =>
-      `${t.name}: ${t.missing.map(n => `${t.id}-${n}`).join(', ')}`
-    );
+    const lines = grouped.map(t => `${t.name}: ${t.missing.join(', ')}`);
     const text = `FIFA WC 2026 Missing Stickers (${missingCount} total)\n\n` + lines.join('\n');
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+    a.href = URL.createObjectURL(new Blob([text],{type:'text/plain'}));
     a.download = 'missing-stickers-wc2026.txt';
     a.click();
   };
 
   return (
     <div className="list-pane">
-      <div className="list-meta" style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+      <div className="list-meta" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <span>{missingCount} stickers still needed</span>
         <button className="btn-export" onClick={exportTxt}>Export .txt</button>
       </div>
@@ -337,9 +352,7 @@ function MissingTab({ album, missingCount }) {
         <div key={team.id} className="missing-block">
           <div className="missing-team-name">{team.flag} {team.name} <span className="missing-count">({team.missing.length})</span></div>
           <div className="missing-pills">
-            {team.missing.map(n => (
-              <span key={n} className="missing-pill">{team.id}-{n}</span>
-            ))}
+            {team.missing.map(id => <span key={id} className="missing-pill">{id}</span>)}
           </div>
         </div>
       ))}
@@ -359,25 +372,25 @@ function ShareTab({ album, dupes, room, members, loading, error, memberId, creat
 
   const swapMatches = useMemo(() => {
     try {
-      const others = members.filter(m => m.memberId !== memberId);
-      return others.map(m => {
+      return members.filter(m=>m.memberId!==memberId).map(m => {
         const theyNeed = [];
         TEAMS.forEach(team => {
-          Array.from({ length: team.count }, (_, i) => i + 1).forEach(n => {
-            const id = `${team.id}-${n}`;
-            const theirAlbum = new Set(m.album || []);
+          const startAt = team.startAt ?? 1;
+          Array.from({length:team.count},(_,i)=>startAt+i).forEach(n => {
+            const id = team.startAt===0 ? `${team.id}-${String(n).padStart(2,'0')}` : `${team.id}-${n}`;
+            const theirAlbum = new Set(m.album||[]);
             if (myDupeIds.has(id) && !theirAlbum.has(id)) theyNeed.push(id);
           });
         });
-        return { name: m.name, stickers: theyNeed };
-      }).filter(m => m.stickers.length > 0);
+        return { name:m.name, stickers:theyNeed };
+      }).filter(m=>m.stickers.length>0);
     } catch { return []; }
   }, [members, myDupeIds, memberId]);
 
   if (!hasFirebase) return (
     <div className="share-card">
       <div className="share-title">Setup required</div>
-      <p className="share-sub">Friend sharing needs a free Firebase database. Follow the steps in <code>README.md</code>.</p>
+      <p className="share-sub">Add your Firebase URL to enable friend rooms. See README.md.</p>
       <div className="code-block">VITE_FIREBASE_URL=https://your-project-default-rtdb.firebaseio.com</div>
     </div>
   );
@@ -388,19 +401,19 @@ function ShareTab({ album, dupes, room, members, loading, error, memberId, creat
         <div className="share-title">Create a room</div>
         <p className="share-sub">Generate a code and share it with friends.</p>
         <div className="input-row">
-          <input className="text-input" placeholder="Your name (e.g. Kiko)" value={myName} onChange={e => setMyName(e.target.value)} />
-          <button className="btn-primary" disabled={!myName.trim() || loading} onClick={() => createRoom(myName.trim(), album, dupes)}>
-            {loading ? 'Creating…' : 'Create'}
+          <input className="text-input" placeholder="Your name (e.g. Kiko)" value={myName} onChange={e=>setMyName(e.target.value)} />
+          <button className="btn-primary" disabled={!myName.trim()||loading} onClick={()=>createRoom(myName.trim(),album,dupes)}>
+            {loading?'Creating…':'Create'}
           </button>
         </div>
       </div>
       <div className="share-card">
         <div className="share-title">Join a room</div>
         <div className="input-row" style={{flexWrap:'wrap',gap:8}}>
-          <input className="text-input" placeholder="Your name" value={joinName} onChange={e => setJoinName(e.target.value)} style={{maxWidth:150}} />
-          <input className="text-input mono" placeholder="WC-XXXX" value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())} style={{maxWidth:140}} maxLength={7} />
-          <button className="btn-primary" disabled={!joinCode.trim() || !joinName.trim() || loading} onClick={() => joinRoom(joinCode, joinName.trim(), album, dupes)}>
-            {loading ? 'Joining…' : 'Join'}
+          <input className="text-input" placeholder="Your name" value={joinName} onChange={e=>setJoinName(e.target.value)} style={{maxWidth:150}} />
+          <input className="text-input mono" placeholder="WC-XXXX" value={joinCode} onChange={e=>setJoinCode(e.target.value.toUpperCase())} style={{maxWidth:140}} maxLength={7} />
+          <button className="btn-primary" disabled={!joinCode.trim()||!joinName.trim()||loading} onClick={()=>joinRoom(joinCode,joinName.trim(),album,dupes)}>
+            {loading?'Joining…':'Join'}
           </button>
         </div>
         {error && <p className="error-msg">{error}</p>}
@@ -415,20 +428,20 @@ function ShareTab({ album, dupes, room, members, loading, error, memberId, creat
           <div className="share-title" style={{marginBottom:0}}>Room: {room.code}</div>
           <button className="btn-ghost-sm" onClick={leaveRoom}>Leave</button>
         </div>
-        <div className="room-code" onClick={() => { navigator.clipboard?.writeText(room.code); setCopied(true); setTimeout(()=>setCopied(false),2000); }}>
-          {room.code} <span className="room-code-hint">{copied ? '✓ copied' : 'tap to copy'}</span>
+        <div className="room-code" onClick={()=>{navigator.clipboard?.writeText(room.code);setCopied(true);setTimeout(()=>setCopied(false),2000);}}>
+          {room.code} <span className="room-code-hint">{copied?'✓ copied':'tap to copy'}</span>
         </div>
       </div>
       <div className="share-card">
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
           <div className="share-title" style={{marginBottom:0}}>Members ({members.length})</div>
-          <button className="btn-ghost-sm" onClick={() => fetchMembers(room.code)}>Refresh</button>
+          <button className="btn-ghost-sm" onClick={()=>fetchMembers(room.code)}>Refresh</button>
         </div>
-        {members.length === 0
+        {members.length===0
           ? <p className="share-sub">No one else yet — share the code!</p>
           : members.map(m => {
-              const isMe = m.memberId === memberId;
-              const ago = Math.round((Date.now() - (m.updated||0)) / 60000);
+              const isMe = m.memberId===memberId;
+              const ago = Math.round((Date.now()-(m.updated||0))/60000);
               return (
                 <div key={m.memberId} className="member-row">
                   <div className={`member-dot ${ago>10?'offline':''}`} />
@@ -438,18 +451,18 @@ function ShareTab({ album, dupes, room, members, loading, error, memberId, creat
               );
             })
         }
-        {swapMatches.length > 0 && (
+        {swapMatches.length>0 && (
           <div style={{marginTop:16}}>
-            <div className="list-meta" style={{marginBottom:8}}>Your dupes that friends need</div>
-            {swapMatches.map(m => (
+            <div className="list-meta" style={{marginBottom:8}}>Your dupes friends need</div>
+            {swapMatches.map(m=>(
               <div key={m.name} className="swap-match-row">
                 <div className="swap-match-header">
                   <span className="swap-match-name">{m.name}</span>
                   <span className="badge-gold">needs {m.stickers.length}</span>
                 </div>
                 <div className="missing-pills" style={{marginTop:6}}>
-                  {m.stickers.slice(0,16).map(s => <span key={s} className="missing-pill">{s}</span>)}
-                  {m.stickers.length > 16 && <span className="missing-pill">+{m.stickers.length-16}</span>}
+                  {m.stickers.slice(0,16).map(s=><span key={s} className="missing-pill">{s}</span>)}
+                  {m.stickers.length>16&&<span className="missing-pill">+{m.stickers.length-16}</span>}
                 </div>
               </div>
             ))}
@@ -471,26 +484,30 @@ export default function App() {
   const [input, setInput] = useState('');
   const [toast, setToast] = useState(null);
   const [promoteId, setPromoteId] = useState(null);
-  const [variantPickerId, setVariantPickerId] = useState(null);
+  const [longPressId, setLongPressId] = useState(null);
 
   useEffect(() => { try { sync(album, dupes); } catch {} }, [album, dupes]);
 
-  const showToast = useCallback((msg, type = 'success') => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 2500);
+  const showToast = useCallback((msg, type='success') => {
+    setToast({msg,type});
+    setTimeout(()=>setToast(null),2500);
   }, []);
 
+  // Tap: if not in album → add to album. If in album → add a dupe (base)
   const handleCellTap = useCallback((id) => {
     try {
-      const result = toggleAlbum(id);
-      if (result === 'has-dupes') setPromoteId(id);
-      else if (result === 'added') showToast(`${id} added to album ✅`);
-      else showToast(`${id} removed`, 'neutral');
+      if (!album.has(id)) {
+        toggleAlbum(id);
+        showToast(`${id} added to album ✅`);
+      } else {
+        addDupe(id, 'base');
+        showToast(`${id} dupe added 📦`, 'gold');
+      }
     } catch(e) { console.error(e); }
-  }, [toggleAlbum, showToast]);
+  }, [album, toggleAlbum, addDupe, showToast]);
 
   const handleCellLongPress = useCallback((id) => {
-    setVariantPickerId(id);
+    setLongPressId(id);
   }, []);
 
   const handlePromote = useCallback(() => {
@@ -498,82 +515,112 @@ export default function App() {
     setPromoteId(null);
   }, [promoteId, promoteToAlbum, showToast]);
 
-  const handleVariantSelect = useCallback((variant) => {
-    try { setVariant(variantPickerId, variant); showToast(`${variantPickerId} set to ${VARIANT_COLORS[variant].label}`,'success'); } catch {}
-    setVariantPickerId(null);
-  }, [variantPickerId, setVariant, showToast]);
+  const handleRemoveFromAlbum = useCallback((id) => {
+    try {
+      const hasDupes = dupes.has(id);
+      if (hasDupes) {
+        setLongPressId(null);
+        setPromoteId(id);
+      } else {
+        toggleAlbum(id);
+        showToast(`${id} removed`, 'neutral');
+      }
+    } catch(e) { console.error(e); }
+  }, [dupes, toggleAlbum, showToast]);
 
   const handleBulkAdd = () => {
     try {
-      const { album: toAlbum, dupes: toDupes, notFound } = bulkAdd(input);
+      const {album:toAlbum, dupes:toDupes, notFound} = bulkAdd(input);
       if (toAlbum.length) showToast(`${toAlbum.length} added to album ✅`);
-      if (toDupes.length) showToast(`${toDupes.length} added to dupes 📦`, 'gold');
-      if (notFound.length) showToast(`Not found: ${notFound.join(', ')}`, 'error');
-      if (toAlbum.length || toDupes.length) setInput('');
+      if (toDupes.length) showToast(`${toDupes.length} added to dupes 📦`,'gold');
+      if (notFound.length) showToast(`Not found: ${notFound.join(', ')}`,'error');
+      if (toAlbum.length||toDupes.length) setInput('');
     } catch(e) { console.error(e); }
   };
 
   const handleRemoveDupe = useCallback((id, variant) => {
-    try { removeDupe(id, variant); showToast(`${id} dupe removed`, 'neutral'); } catch(e) { console.error(e); }
+    try { removeDupe(id, variant); showToast(`${id} dupe removed`,'neutral'); } catch(e) { console.error(e); }
   }, [removeDupe, showToast]);
 
   const stats = useMemo(() => {
     try {
       const have = album.size;
-      const totalDupes = [...dupes.values()].reduce((s, entry) =>
-        s + Object.values(entry).reduce((a,b)=>a+b,0), 0);
-      return { have, totalDupes, missing: TOTAL_STICKERS - have };
-    } catch { return { have: 0, totalDupes: 0, missing: TOTAL_STICKERS }; }
+      const totalDupes = [...dupes.values()].reduce((s,entry)=>s+Object.values(entry).reduce((a,b)=>a+b,0),0);
+      return {have,totalDupes,missing:TOTAL_STICKERS-have};
+    } catch { return {have:0,totalDupes:0,missing:TOTAL_STICKERS}; }
   }, [album, dupes]);
 
-  // Sort: incomplete teams first, complete teams at bottom
   const sortedTeams = useMemo(() => {
     try {
       const q = search.toLowerCase();
-      const filtered = TEAMS.filter(t =>
-        !q || t.name.toLowerCase().includes(q) || (t.group||'').toLowerCase().includes(q)
-      );
+      const filtered = TEAMS.filter(t => !q || t.name.toLowerCase().includes(q) || (t.group||'').toLowerCase().includes(q));
       const incomplete = filtered.filter(t => {
-        const have = Array.from({length:t.count},(_,i)=>i+1).filter(n=>album.has(`${t.id}-${n}`)).length;
+        const startAt = t.startAt??1;
+        const have = Array.from({length:t.count},(_,i)=>startAt+i).filter(n=>{
+          const id = t.startAt===0?`${t.id}-${String(n).padStart(2,'0')}`:`${t.id}-${n}`;
+          return album.has(id);
+        }).length;
         return have < t.count;
       });
       const complete = filtered.filter(t => {
-        const have = Array.from({length:t.count},(_,i)=>i+1).filter(n=>album.has(`${t.id}-${n}`)).length;
+        const startAt = t.startAt??1;
+        const have = Array.from({length:t.count},(_,i)=>startAt+i).filter(n=>{
+          const id = t.startAt===0?`${t.id}-${String(n).padStart(2,'0')}`:`${t.id}-${n}`;
+          return album.has(id);
+        }).length;
         return have === t.count;
       });
-      return [...incomplete, ...complete];
+      return [...incomplete,...complete];
     } catch { return TEAMS; }
   }, [search, album]);
 
   const completedIds = useMemo(() => {
     try {
       return new Set(TEAMS.filter(t => {
-        const have = Array.from({length:t.count},(_,i)=>i+1).filter(n=>album.has(`${t.id}-${n}`)).length;
+        const startAt = t.startAt??1;
+        const have = Array.from({length:t.count},(_,i)=>startAt+i).filter(n=>{
+          const id = t.startAt===0?`${t.id}-${String(n).padStart(2,'0')}`:`${t.id}-${n}`;
+          return album.has(id);
+        }).length;
         return have === t.count;
-      }).map(t => t.id));
+      }).map(t=>t.id));
     } catch { return new Set(); }
   }, [album]);
 
-  const dupesCount = dupes.size;
+  const longPressEntry = longPressId ? {
+    albumVariant: variants.get(longPressId) || 'base',
+    dupeVariantCounts: dupes.get(longPressId) || {},
+  } : null;
 
   const TABS = [
-    { key:'album',   label:'📖 Album' },
-    { key:'swaps',   label:`🔄 Swaps (${dupesCount})` },
-    { key:'missing', label:`📋 Missing (${stats.missing})` },
-    { key:'share',   label:`👥 Share${room?` · ${room.code}`:''}` },
+    {key:'album',   label:'📖 Album'},
+    {key:'swaps',   label:`🔄 Swaps (${dupes.size})`},
+    {key:'missing', label:`📋 Missing (${stats.missing})`},
+    {key:'share',   label:`👥 Share${room?` · ${room.code}`:''}`},
   ];
 
   return (
     <div className="app">
-      <PromoteModal stickerId={promoteId} onPromote={handlePromote} onDismiss={() => setPromoteId(null)} />
-      <VariantModal stickerId={variantPickerId} currentVariant={variants.get(variantPickerId)||'base'} onSelect={handleVariantSelect} onDismiss={() => setVariantPickerId(null)} />
+      <PromoteModal stickerId={promoteId} onPromote={handlePromote} onDismiss={()=>setPromoteId(null)} />
+      {longPressId && longPressEntry && (
+        <LongPressMenu
+          stickerId={longPressId}
+          albumVariant={longPressEntry.albumVariant}
+          dupeVariantCounts={longPressEntry.dupeVariantCounts}
+          onClose={()=>setLongPressId(null)}
+          onSetAlbumVariant={v=>{ try{setVariant(longPressId,v);showToast(`Album copy set to ${VARIANT_COLORS[v].label}`);}catch(e){} }}
+          onAddDupe={v=>{ try{addDupe(longPressId,v);showToast(`${longPressId} ${VARIANT_COLORS[v].label} dupe added 📦`,'gold');}catch(e){} }}
+          onRemoveDupe={v=>handleRemoveDupe(longPressId,v)}
+          onRemoveFromAlbum={()=>handleRemoveFromAlbum(longPressId)}
+        />
+      )}
 
       <header className="header">
         <div>
           <h1 className="logo">WC 2026 Sticker Tracker</h1>
           <p className="logo-sub">Physical Album · Panini Official Collection</p>
         </div>
-        <button className="btn-reset" onClick={() => { if (confirm('Reset everything?')) { resetAll(); showToast('Reset','neutral'); } }}>Reset</button>
+        <button className="btn-reset" onClick={()=>{if(confirm('Reset everything?')){resetAll();showToast('Reset','neutral');}}}>Reset</button>
       </header>
 
       <div className="progress-card">
@@ -589,36 +636,33 @@ export default function App() {
       </div>
 
       <div className="tabs">
-        {TABS.map(t => (
-          <button key={t.key} className={`tab ${tab===t.key?'active':''}`} onClick={() => setTab(t.key)}>{t.label}</button>
+        {TABS.map(t=>(
+          <button key={t.key} className={`tab ${tab===t.key?'active':''}`} onClick={()=>setTab(t.key)}>{t.label}</button>
         ))}
       </div>
 
-      {tab === 'album' && (
+      {tab==='album' && (
         <>
           <div className="add-row">
-            <input className="text-input" placeholder="Add: SUI-15, ARG-3, USA-7…" value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleBulkAdd()} />
+            <input className="text-input" placeholder="Add: SUI-15, ARG-3, FWC-00…" value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleBulkAdd()} />
             <button className="btn-primary" onClick={handleBulkAdd}>+ Add</button>
           </div>
           <div className="controls">
             <input className="text-input search" placeholder="Search team or group…" value={search} onChange={e=>setSearch(e.target.value)} />
             <div className="filters">
-              {['all','have','missing','dupes'].map(f => (
-                <button key={f} className={`flt ${filter===f?'active':''}`} onClick={() => setFilter(f)}>
+              {['all','have','missing','dupes'].map(f=>(
+                <button key={f} className={`flt ${filter===f?'active':''}`} onClick={()=>setFilter(f)}>
                   {f==='all'?'All':f==='have'?'✅ Have':f==='missing'?'❌ Missing':'📦 Dupes'}
                 </button>
               ))}
             </div>
           </div>
-          <div className="variant-legend">
-            <span className="legend-label">Variants:</span>
-            {VARIANTS.filter(v=>v!=='base').map(v => {
-              const vc = VARIANT_COLORS[v];
-              return <span key={v} className="legend-chip" style={{background:vc.bg,borderColor:vc.border,color:vc.text}}>{vc.label}</span>;
-            })}
-            <span className="legend-hint">Hold a sticker to set variant</span>
+          <div className="interaction-hint">
+            <span>Tap = add to album / add dupe</span>
+            <span className="hint-dot">·</span>
+            <span>Hold = manage variants & dupes</span>
           </div>
-          {sortedTeams.map(team => (
+          {sortedTeams.map(team=>(
             <ErrorBoundary key={team.id}>
               <Section
                 team={team}
@@ -635,9 +679,9 @@ export default function App() {
         </>
       )}
 
-      {tab === 'swaps' && <SwapsTab dupes={dupes} onRemoveDupe={handleRemoveDupe} />}
-      {tab === 'missing' && <MissingTab album={album} missingCount={stats.missing} />}
-      {tab === 'share' && (
+      {tab==='swaps' && <SwapsTab dupes={dupes} onRemoveDupe={handleRemoveDupe} />}
+      {tab==='missing' && <MissingTab album={album} missingCount={stats.missing} />}
+      {tab==='share' && (
         <ShareTab
           album={album} dupes={dupes}
           room={room} members={members} loading={loading} error={error} memberId={memberId}

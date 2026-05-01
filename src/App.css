@@ -212,3 +212,21 @@ html, body { min-height: 100vh; background: var(--bg); color: var(--text); font-
 .section-complete { opacity:0.6; }
 .section-complete:hover { opacity:1; }
 .sec-complete-badge { font-size:10px; background:rgba(45,154,92,0.15); border:1px solid rgba(45,154,92,0.4); color:var(--green-hi); border-radius:99px; padding:1px 8px; }
+
+/* ── CELL DUPE BADGE ── */
+.cell-dupe-badge { position:absolute; top:1px; right:2px; font-size:8px; font-weight:800; color:var(--gold-hi); background:rgba(176,125,16,0.2); border-radius:3px; padding:0 2px; line-height:1.4; }
+
+/* ── INTERACTION HINT ── */
+.interaction-hint { display:flex; gap:8px; align-items:center; font-size:11px; color:var(--dim); margin-bottom:12px; flex-wrap:wrap; }
+.hint-dot { color:var(--border); }
+
+/* ── LONG PRESS MENU ── */
+.lpm-section-label { font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+.dupe-remove-list { display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+.dupe-remove-row { display:flex; align-items:center; justify-content:space-between; background:var(--vbg,var(--surface2)); border:1px solid var(--vborder,var(--border)); border-radius:var(--r); padding:8px 12px; }
+.dupe-remove-label { font-size:13px; color:var(--vtext,var(--text)); font-weight:500; }
+.dupe-remove-btn { background:none; border:1px solid var(--vborder,var(--border)); border-radius:var(--r); padding:4px 10px; color:var(--vtext,var(--dim)); font-size:12px; cursor:pointer; transition:all 0.15s; }
+.dupe-remove-btn:hover { background:var(--red); border-color:var(--red); color:#fff; }
+.modal-btn-danger { background:var(--red); color:#fff; }
+.modal-btn-danger:hover { opacity:0.85; }
+.swap-chip-group { display:flex; flex-direction:column; gap:3px; }
