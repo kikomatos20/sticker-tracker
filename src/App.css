@@ -232,3 +232,8 @@ html, body { min-height: 100vh; background: var(--bg); color: var(--text); font-
 .modal-btn-danger { background:var(--red); color:#fff; }
 .modal-btn-danger:hover { opacity:0.85; }
 .swap-chip-group { display:flex; flex-direction:column; gap:3px; }
+
+/* ── SWAP MATCH GREEN (friends can give me) ── */
+.swap-match-row-give { border-color: rgba(45,154,92,0.3); }
+.badge-green { font-size:0.7rem; background:rgba(45,154,92,0.12); border:1px solid rgba(45,154,92,0.35); color:var(--green-hi); border-radius:99px; padding:2px 9px; }
+.missing-pill-green { border-color: rgba(45,154,92,0.3); color: var(--green-hi); }

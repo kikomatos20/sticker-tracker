@@ -387,6 +387,7 @@ function ShareTab({ album, dupes, room, members, loading, error, memberId, creat
 
   const myDupeIds = useMemo(() => new Set([...dupes.keys()]), [dupes]);
 
+  // What I have as dupes that friends need
   const swapMatches = useMemo(() => {
     try {
       return members.filter(m=>m.memberId!==memberId).map(m => {
@@ -403,6 +404,24 @@ function ShareTab({ album, dupes, room, members, loading, error, memberId, creat
       }).filter(m=>m.stickers.length>0);
     } catch { return []; }
   }, [members, myDupeIds, memberId]);
+
+  // What friends have as dupes that I need
+  const friendsCanGiveMe = useMemo(() => {
+    try {
+      return members.filter(m=>m.memberId!==memberId).map(m => {
+        const theyHave = [];
+        const theirDupes = new Set(Object.keys(m.dupes||{}));
+        TEAMS.forEach(team => {
+          const startAt = team.startAt ?? 1;
+          Array.from({length:team.count},(_,i)=>startAt+i).forEach(n => {
+            const id = team.startAt===0 ? `${team.id}-${String(n).padStart(2,'0')}` : `${team.id}-${n}`;
+            if (theirDupes.has(id) && !album.has(id)) theyHave.push(id);
+          });
+        });
+        return { name:m.name, stickers:theyHave };
+      }).filter(m=>m.stickers.length>0);
+    } catch { return []; }
+  }, [members, album, memberId]);
 
   if (!hasFirebase) return (
     <div className="share-card">
@@ -470,12 +489,12 @@ function ShareTab({ album, dupes, room, members, loading, error, memberId, creat
         }
         {swapMatches.length>0 && (
           <div style={{marginTop:16}}>
-            <div className="list-meta" style={{marginBottom:8}}>Your dupes friends need</div>
+            <div className="list-meta" style={{marginBottom:8}}>🔄 Your dupes that friends need</div>
             {swapMatches.map(m=>(
               <div key={m.name} className="swap-match-row">
                 <div className="swap-match-header">
                   <span className="swap-match-name">{m.name}</span>
-                  <span className="badge-gold">needs {m.stickers.length}</span>
+                  <span className="badge-gold">can receive {m.stickers.length} from you</span>
                 </div>
                 <div className="missing-pills" style={{marginTop:6}}>
                   {m.stickers.slice(0,16).map(s=><span key={s} className="missing-pill">{s}</span>)}
@@ -484,6 +503,26 @@ function ShareTab({ album, dupes, room, members, loading, error, memberId, creat
               </div>
             ))}
           </div>
+        )}
+        {friendsCanGiveMe.length>0 && (
+          <div style={{marginTop:16}}>
+            <div className="list-meta" style={{marginBottom:8}}>🎁 Friends' dupes you need</div>
+            {friendsCanGiveMe.map(m=>(
+              <div key={m.name} className="swap-match-row swap-match-row-give">
+                <div className="swap-match-header">
+                  <span className="swap-match-name">{m.name}</span>
+                  <span className="badge-green">can give you {m.stickers.length}</span>
+                </div>
+                <div className="missing-pills" style={{marginTop:6}}>
+                  {m.stickers.slice(0,16).map(s=><span key={s} className="missing-pill missing-pill-green">{s}</span>)}
+                  {m.stickers.length>16&&<span className="missing-pill">+{m.stickers.length-16}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {swapMatches.length===0 && friendsCanGiveMe.length===0 && members.length>1 && (
+          <div style={{marginTop:16,fontSize:'0.8rem',color:'var(--dim)'}}>No swap matches yet — keep logging stickers!</div>
         )}
       </div>
     </>
