@@ -95,7 +95,7 @@ function LongPressMenu({ stickerId, albumVariant, dupeVariantCounts, onClose, on
                 return (
                   <div key={v} className="dupe-remove-row" style={{'--vbg':vc.bg,'--vborder':vc.border,'--vtext':vc.text}}>
                     <span className="dupe-remove-label">{vc.label} ×{count}</span>
-                    <button className="dupe-remove-btn" onClick={() => { onRemoveDupe(v); onClose(); }}>− Remove one</button>
+                    <button className="dupe-remove-btn" onClick={() => { onRemoveDupe(v); }}>− Remove one</button>
                   </div>
                 );
               })}
@@ -103,7 +103,7 @@ function LongPressMenu({ stickerId, albumVariant, dupeVariantCounts, onClose, on
           </>
         )}
 
-        <button className="modal-btn modal-btn-danger" style={{marginTop:12,width:'100%'}} onClick={() => { onRemoveFromAlbum(); onClose(); }}>
+        <button className="modal-btn modal-btn-danger" style={{marginTop:12,width:'100%'}} onClick={() => { onRemoveFromAlbum(); }}>
           Remove from album
         </button>
         <button className="modal-btn modal-btn-secondary" style={{marginTop:8,width:'100%'}} onClick={onClose}>Cancel</button>
