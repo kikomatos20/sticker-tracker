@@ -27,6 +27,7 @@ function PromoteModal({ stickerId, onPromote, onDismiss }) {
   return (
     <div className="modal-overlay" onClick={onDismiss}>
       <div className="modal" onClick={e => e.stopPropagation()}>
+        <button className="modal-x" onClick={onDismiss}>✕</button>
         <div className="modal-icon">📦</div>
         <div className="modal-title">You have a duplicate of <span className="modal-id">{stickerId}</span></div>
         <div className="modal-sub">Move it from your duplicates pile into your album?</div>
@@ -46,8 +47,9 @@ function LongPressMenu({ stickerId, albumVariant, dupeVariantCounts, onClose, on
   const totalDupes = Object.values(dupeVariantCounts || {}).reduce((s,c)=>s+c,0);
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" onClick={e => e.stopPropagation()}>
+        <button className="modal-x" onClick={onClose}>✕</button>
         <div className="modal-title" style={{marginBottom:4}}>{stickerId}</div>
         <div className="modal-sub" style={{marginBottom:16}}>What would you like to do?</div>
 
@@ -342,11 +344,26 @@ function MissingTab({ album, missingCount }) {
     a.click();
   };
 
+  const exportCsv = () => {
+    const rows = [['Team','Group','Sticker ID']];
+    grouped.forEach(t => {
+      t.missing.forEach(id => rows.push([t.name, t.group||'Intro', id]));
+    });
+    const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+    a.download = 'missing-stickers-wc2026.csv';
+    a.click();
+  };
+
   return (
     <div className="list-pane">
-      <div className="list-meta" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <div className="list-meta" style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}}>
         <span>{missingCount} stickers still needed</span>
-        <button className="btn-export" onClick={exportTxt}>Export .txt</button>
+        <div style={{display:'flex',gap:6}}>
+          <button className="btn-export" onClick={exportTxt}>Export .txt</button>
+          <button className="btn-export" onClick={exportCsv}>Export .csv</button>
+        </div>
       </div>
       {grouped.map(team => (
         <div key={team.id} className="missing-block">
@@ -476,7 +493,7 @@ function ShareTab({ album, dupes, room, members, loading, error, memberId, creat
 // ── App ────────────────────────────────────────────────────────────────────
 export default function App() {
   const { album, dupes, variants, toggleAlbum, promoteToAlbum, addDupe, removeDupe, setVariant, bulkAdd, resetAll } = useStore();
-  const { room, members, loading, error, memberId, createRoom, joinRoom, sync, leaveRoom, fetchMembers } = useRoom();
+  const { room, members, loading, error, memberId, createRoom, joinRoom, sync, leaveRoom, fetchMembers, loadMyData } = useRoom(album, dupes);
 
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
